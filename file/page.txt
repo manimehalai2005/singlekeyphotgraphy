@@ -1,0 +1,30 @@
+{
+      id: "GEN26196E007",
+      employeeCode: "GEN26196E007",
+      cardImageUrl: "https://i.pravatar.cc/600?img=45",
+      profile: {
+        firstName: "MANI", middleName: null, lastName: "MEHALAI", displayName: "manimehalai.s",
+        profileImage: "https://i.pravatar.cc/300?img=45",
+        phone: "+91 6374021962", bloodGroup: "A_Positive",
+        address: address("SF,348/1","sri Venkateshwara college Road,Ettimadai", "pallakad Road", "coimbatore-641 112"),
+      },
+      designation: "Full stack developer",
+      department: dept.eng,
+      employmentType: "full_time",
+      joiningDate: "2026-07-01:00:00.000Z",
+      experience: { years:0, months: 6 },
+      bio: "Delivers of full stack developer courses at Genzzi Institute of Technology.",
+      skills: [{ id: "skill-001", name: "Html" },{ id: "skill-002", name: "css" },{ id: "skill-003", name: "tailwindcss-4" },{ id: "skill-004", name: "Javascript" },
+      { id: "skill-005", name: "Reactjs" },{ id: "skill-006", name: "Nextjs" },{ id: "skill-007", name: "Nestjs" },
+      { id: "skill-007", name: "mongodb" },
+      { id: "skill-008", name: "postgressql" },
+      { id: "skill-009", name: "prisma" },
+   
+      ],
+      emergencyContact: { name: "karpagavalli", relationship: "mother", phone: "+91 8754862062" },
+      socialLinks: [{ platform: "LINKEDIN", url:"https://www.linkedin.com/manimehalai" },
+      { platform: "WEBSITE", url:"https://mani.vercel.app" },
+      { platform: "GITHUB", url:"https://github.com/manimehalai2005" }
+      ]
+
+}
