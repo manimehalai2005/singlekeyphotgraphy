@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import AosProvider from "@/src/Provider/Aos";
+
 import Navbar from "@/src/Navbar/Navbar";
 import Footer from "@/src/Footer/Footer";
 import { Toaster } from "sonner";
 import { GalleryProvider } from "@/src/context/GalleryContext";
 import { WeddingProvider } from "@/src/context/WeddingContenxt";
 import { PreWeddingProvider } from "@/src/context/pre-weddingContext";
-import EngagementGallery from "@/src/packagess/engagement/engagementGallery";
+
 import { EngagementProvider } from "@/src/context/EngagementContext";
 import { FamilyProvider } from "@/src/context/BirthdayFamilyContext";
 import { NamingProvider } from "@/src/context/NamingContext";
@@ -38,16 +38,38 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "SingleKey Photography | Wedding & Event Photography",
+    default: "SingleKey Photography ",
     template: "%s | SingleKey Photography",
   },
   description:
     "Discover SingleKey Photography for wedding photography, candid moments, special events, portraits, and timeless memories.",
   applicationName: "SingleKey Photography",
+  icons: {
+    icon: [
+      {
+        url: 'https://cdn.photomall.in/photomall/d0bade31-0828-4442-a034-25a0a58c6bb90nhCITc9',
+        sizes: '32x32',
+        type: 'image/png',
+      },
+      {
+        url: 'https://cdn.photomall.in/photomall/d0bade31-0828-4442-a034-25a0a58c6bb90nhCITc9',
+        sizes: '192x192', // Periya screen / mobile shortcuts-kaaga
+        type: 'image/png',
+      },
+    ],
+    apple: [
+      {
+        url: 'https://cdn.photomall.in/photomall/d0bade31-0828-4442-a034-25a0a58c6bb90nhCITc9',
+        sizes: '180x180',
+        type: 'image/png',
+      },
+    ],
+  },
   openGraph: {
-    title: "SingleKey Photography | Wedding & Event Photography",
+    title: "SingleKey Photography ",
     description:
       "Capturing beautiful weddings, special events, and unforgettable moments through photography.",
+      
     siteName: "SingleKey Photography",
     type: "website",
     locale: "en_IN",

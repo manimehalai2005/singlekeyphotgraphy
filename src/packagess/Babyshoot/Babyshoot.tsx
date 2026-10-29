@@ -166,7 +166,7 @@ export default function BabyShoot() {
             <div className="relative w-full h-full duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)] rounded-2xl shadow-md">
               <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-2xl overflow-hidden">
                 <img
-                  src="https://tse1.mm.bing.net/th/id/OIP.OMV1s8xZ-LzaTFbdHkRQKwHaE8?r=0&w=2560&h=1707&rs=1&pid=ImgDetMain&o=7&rm=3"
+                  src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793262534/SK_08276_A_1.jpg"
                   alt="Seemantham ceremony moment"
                   className="w-full h-full object-cover"
                 />
@@ -194,7 +194,7 @@ export default function BabyShoot() {
             <div className="relative w-full h-full duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)] rounded-2xl shadow-md">
               <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-2xl overflow-hidden">
                 <img
-                  src="https://i.pinimg.com/originals/f4/62/46/f46246bb9f49c60b2a0f29ed7874bfeb.jpg"
+                  src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793262604/SK_04893_copy_1.jpg"
                   alt="Expectant mother portrait"
                   className="w-full h-full object-cover"
                 />
@@ -222,7 +222,7 @@ export default function BabyShoot() {
             <div className="relative w-full h-full duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)] rounded-2xl shadow-md">
               <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-2xl overflow-hidden">
                 <img
-                  src="https://images.squarespace-cdn.com/content/v1/5f81ccab77201b244d7f2d2c/72d9d969-95bb-487e-a81d-9eac90561c16/730A1132.jpg"
+                  src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793262717/SK_08277_A_1.jpg"
                   alt="Family blessings and traditional customs"
                   className="w-full h-full object-cover"
                 />
@@ -250,7 +250,7 @@ export default function BabyShoot() {
             <div className="relative w-full h-full duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)] rounded-2xl shadow-md">
               <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-2xl overflow-hidden">
                 <img
-                  src="https://i.ytimg.com/vi/84uYCupHwAg/maxresdefault.jpg"
+                  src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793259769/SK_08626_A_1.jpg"
                   alt="Grand baby shower celebration"
                   className="w-full h-full object-cover"
                 />

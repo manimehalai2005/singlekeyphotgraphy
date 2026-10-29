@@ -1,6 +1,13 @@
+
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from 'react';
 
 interface EngageInfiniteState {
   topRow: string[];
@@ -13,6 +20,9 @@ interface EngageInfiniteContextType {
   resetSingleImage: (row: 'top' | 'bottom', index: number) => void;
   resetImages: () => void;
 }
+
+const STORAGE_KEY = 'singlekey_engage_infinite_slider';
+const UPDATE_EVENT = 'engage_slider_updated';
 
 const initialTopRow = [
   'https://pestafiesta.com/wp-content/uploads/2021/05/Party-Venue.jpg',
@@ -30,111 +40,231 @@ const initialBottomRow = [
   'https://tse3.mm.bing.net/th/id/OIP.Br8Og0aLya7hgv6qMP18ZQHaFL?r=0&w=1024&h=716&rs=1&pid=ImgDetMain&o=7&rm=3',
 ];
 
-const EngageInfiniteContext = createContext<EngageInfiniteContextType | undefined>(undefined);
+const createDefaultState = (): EngageInfiniteState => ({
+  topRow: [...initialTopRow],
+  bottomRow: [...initialBottomRow],
+});
 
-export function EngageInfiniteProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<EngageInfiniteState>({
-    topRow: initialTopRow,
-    bottomRow: initialBottomRow,
-  });
+const isValidState = (value: unknown): value is EngageInfiniteState => {
+  if (!value || typeof value !== 'object') return false;
 
-  useEffect(() => {
+  const candidate = value as EngageInfiniteState;
+
+  return (
+    Array.isArray(candidate.topRow) &&
+    Array.isArray(candidate.bottomRow) &&
+    candidate.topRow.length === initialTopRow.length &&
+    candidate.bottomRow.length === initialBottomRow.length &&
+    [...candidate.topRow, ...candidate.bottomRow].every(
+      (image) =>
+        typeof image === 'string' &&
+        image.length > 0 &&
+        !image.startsWith('data:image/')
+    )
+  );
+};
+
+const EngageInfiniteContext = createContext<
+  EngageInfiniteContextType | undefined
+>(undefined);
+
+export function EngageInfiniteProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [state, setState] =
+    useState<EngageInfiniteState>(createDefaultState);
+
+  const stateRef = useRef<EngageInfiniteState>(createDefaultState());
+
+  const persistState = (updated: EngageInfiniteState) => {
+    stateRef.current = updated;
+    setState(updated);
+
     try {
-      const saved = localStorage.getItem('singlekey_engage_infinite_slider');
-      if (saved && saved !== 'undefined' && saved !== 'null') {
-        const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-          setState(parsed);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to parse engage infinite slider from localStorage", e);
-      localStorage.removeItem('singlekey_engage_infinite_slider');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event(UPDATE_EVENT));
+    } catch (error) {
+      console.error('Failed to save engagement slider:', error);
     }
-  }, []);
+  };
 
+  // Load saved URLs and clean up invalid or old Base64 data.
   useEffect(() => {
-    const handleStorageChange = () => {
+    const loadSavedState = () => {
       try {
-        const saved = localStorage.getItem('singlekey_engage_infinite_slider');
-        if (saved && saved !== 'undefined' && saved !== 'null') {
-          const parsed = JSON.parse(saved);
-          if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-            setState(parsed);
-          }
+        const saved = localStorage.getItem(STORAGE_KEY);
+
+        if (!saved || saved === 'undefined' || saved === 'null') {
+          return;
         }
-      } catch (e) {
-        console.error("Storage event parse error:", e);
+
+        const parsed: unknown = JSON.parse(saved);
+
+        if (isValidState(parsed)) {
+          stateRef.current = parsed;
+          setState(parsed);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+
+          const defaults = createDefaultState();
+          stateRef.current = defaults;
+          setState(defaults);
+        }
+      } catch (error) {
+        console.error('Failed to load engagement slider:', error);
+
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+        } catch {
+          // Ignore storage cleanup errors.
+        }
+
+        const defaults = createDefaultState();
+        stateRef.current = defaults;
+        setState(defaults);
       }
+    };
+
+    loadSavedState();
+
+    const handleStorageChange = (event: Event) => {
+      if (event.type === UPDATE_EVENT) return;
+      loadSavedState();
     };
 
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('engage_slider_updated', handleStorageChange);
+    window.addEventListener(UPDATE_EVENT, handleStorageChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('engage_slider_updated', handleStorageChange);
+      window.removeEventListener(UPDATE_EVENT, handleStorageChange);
     };
   }, []);
 
-  const updateImage = (row: 'top' | 'bottom', index: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64Image = e.target?.result as string;
-      setState((prev) => {
-        const updated = { ...prev };
-        if (row === 'top') {
-          const newTop = [...prev.topRow];
-          newTop[index] = base64Image;
-          updated.topRow = newTop;
-        } else {
-          const newBottom = [...prev.bottomRow];
-          newBottom[index] = base64Image;
-          updated.bottomRow = newBottom;
-        }
+  // Upload to Cloudinary; save only the resulting URL.
+  const updateImage = async (
+    row: 'top' | 'bottom',
+    index: number,
+    file: File
+  ) => {
+    try {
+      const currentRow =
+        row === 'top'
+          ? stateRef.current.topRow
+          : stateRef.current.bottomRow;
 
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('singlekey_engage_infinite_slider', JSON.stringify(updated));
-          window.dispatchEvent(new Event('engage_slider_updated'));
-        }
-        return updated;
-      });
-    };
-    reader.readAsDataURL(file);
-  };
+      if (index < 0 || index >= currentRow.length) {
+        alert('Invalid image selection.');
+        return;
+      }
 
-  const resetSingleImage = (row: 'top' | 'bottom', index: number) => {
-    setState((prev) => {
-      const updated = { ...prev };
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file.');
+        return;
+      }
+
+      const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+      if (file.size > MAX_FILE_SIZE) {
+        alert('Image size must be 10 MB or less.');
+        return;
+      }
+
+      const cloudName =
+        process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+
+      const uploadPreset =
+        process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+      if (!cloudName || !uploadPreset) {
+        throw new Error(
+          'Cloudinary configuration is missing. Check your .env.local file.'
+        );
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', uploadPreset);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.secure_url) {
+        throw new Error(
+          result.error?.message || 'Cloudinary upload failed.'
+        );
+      }
+
+      const latestState = stateRef.current;
+
+      const updated: EngageInfiniteState = {
+        topRow: [...latestState.topRow],
+        bottomRow: [...latestState.bottomRow],
+      };
+
       if (row === 'top') {
-        const newTop = [...prev.topRow];
-        newTop[index] = initialTopRow[index];
-        updated.topRow = newTop;
+        updated.topRow[index] = result.secure_url;
       } else {
-        const newBottom = [...prev.bottomRow];
-        newBottom[index] = initialBottomRow[index];
-        updated.bottomRow = newBottom;
+        updated.bottomRow[index] = result.secure_url;
       }
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('singlekey_engage_infinite_slider', JSON.stringify(updated));
-        window.dispatchEvent(new Event('engage_slider_updated'));
-      }
-      return updated;
-    });
-  };
+      persistState(updated);
+    } catch (error) {
+      console.error('Engagement image upload failed:', error);
 
-  const resetImages = () => {
-    const defaultState = { topRow: initialTopRow, bottomRow: initialBottomRow };
-    setState(defaultState);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('singlekey_engage_infinite_slider', JSON.stringify(defaultState));
-      window.dispatchEvent(new Event('engage_slider_updated'));
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Image upload failed. Please try again.'
+      );
     }
   };
 
+  const resetSingleImage = (
+    row: 'top' | 'bottom',
+    index: number
+  ) => {
+    const currentRow =
+      row === 'top' ? initialTopRow : initialBottomRow;
+
+    if (index < 0 || index >= currentRow.length) return;
+
+    const updated: EngageInfiniteState = {
+      topRow: [...stateRef.current.topRow],
+      bottomRow: [...stateRef.current.bottomRow],
+    };
+
+    if (row === 'top') {
+      updated.topRow[index] = initialTopRow[index];
+    } else {
+      updated.bottomRow[index] = initialBottomRow[index];
+    }
+
+    persistState(updated);
+  };
+
+  const resetImages = () => {
+    persistState(createDefaultState());
+  };
+
   return (
-    <EngageInfiniteContext.Provider value={{ state, updateImage, resetSingleImage, resetImages }}>
+    <EngageInfiniteContext.Provider
+      value={{
+        state,
+        updateImage,
+        resetSingleImage,
+        resetImages,
+      }}
+    >
       {children}
     </EngageInfiniteContext.Provider>
   );
@@ -142,6 +272,12 @@ export function EngageInfiniteProvider({ children }: { children: React.ReactNode
 
 export function useEngageInfinite() {
   const context = useContext(EngageInfiniteContext);
-  if (!context) throw new Error('useEngageInfinite must be used within an EngageInfiniteProvider');
+
+  if (!context) {
+    throw new Error(
+      'useEngageInfinite must be used within an EngageInfiniteProvider'
+    );
+  }
+
   return context;
 }

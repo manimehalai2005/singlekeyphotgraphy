@@ -6,92 +6,92 @@ import React, { useState, useEffect, useRef } from "react";
 const hexImages = [
   {
     id: "hex-1",
-    src: "https://tse4.mm.bing.net/th/id/OIP.REED7Ynu0wp8IbhNszcDkAHaE8?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793269556/pwo35gw4kgtvmebtv2zs.jpg",
     alt: "Wedding reception ceremony",
   },
   {
     id: "hex-2",
-    src: "https://cdn0.weddingwire.in/article/6886/original/1280/jpg/126886-akclicks-weddingphotography.jpeg",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793269466/ddqda4x3o5icer08jnvq.jpg",
     alt: "First dance as married couple",
   },
   {
     id: "hex-3",
-    src: "https://cdn0.weddingwire.in/article/9886/original/960/jpg/126889-akclicks-weddingphotography4.jpeg",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793269122/oymzrdopmcox24tdazwl.jpg",
     alt: "Beach sunset moments",
   },
   {
     id: "hex-4",
-    src: "https://tse1.mm.bing.net/th/id/OIP.eTk-RySJGyIgPXX1ybK29QHaE8?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793269212/ylgboh0isblqrur3etl5.jpg",
     alt: "Ring exchange celebration",
   },
   {
     id: "hex-5",
-    src: "https://images.squarespace-cdn.com/content/v1/52ed3507e4b041396187d22b/1636341312774-R1V36399MVLRAF13PGC3/Tamarind+Tree+Wedding+15.jpeg",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793269556/pwo35gw4kgtvmebtv2zs.jpg",
     alt: "Couple smiling together",
   },
   {
     id: "hex-6",
-    src: "https://tse2.mm.bing.net/th/id/OIP.ydhf8wa-gwlRPhhpNyL8GgHaE8?r=0&w=600&h=400&rs=1&pid=ImgDetMain&o=7&rm=3",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793268925/cibjnp7thkltvlkxmywt.jpg",
     alt: "Reception party night",
   },
   {
     id: "hex-7",
-    src: "https://studioa.amarramesh.com/wp-content/uploads/2019/10/VamshiHarika_Wedding_65.jpg",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793262604/SK_04893_copy_1.jpg",
     alt: "Grand wedding feast",
   },
   {
     id: "hex-8",
-    src: "https://th.bing.com/th/id/R.3f6ea7308b4596eec1b8f5af002b1b2c?rik=WKlfsuzRNm%2bSNg&riu=http%3a%2f%2fwww.emotioninpictures.com%2fwp-content%2fuploads%2f2019%2f04%2findian-tamil-wedding-kuala-lumpur-andy-lim-12.jpg&ehk=lXoVjF5X%2bLcJ4tZM6QLqC5FleLGufd0Du1Iw4M309ys%3d&risl=&pid=ImgRaw&r=0",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793268870/jxqri57xfmlewj8fgqzp.jpg",
     alt: "Candid couple laughs",
   },
   {
     id: "hex-9",
-    src: "https://cdn0.weddingwire.in/vendor/4589/3_2/960/jpg/moments-from-heaven-1722407812-3424127365893587669-5024864110_15_214589-172914376769976.jpeg",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793258010/SK_08489_A.jpg",
     alt: "Romantic outdoor portraits",
   },
   {
     id: "hex-10",
-    src: "https://i.pinimg.com/originals/32/e6/45/32e6459d612c1cfdebd03dd8779c733c.jpg",
+    src:"https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793270204/00b.jpg",
     alt: "Bridal portrait close-up",
   },
   {
     id: "hex-11",
-    src: "https://tse3.mm.bing.net/th/id/OIP.Qo3uENXxOdpb78mRgxQIXAHaEx?r=0&w=1024&h=660&rs=1&pid=ImgDetMain&o=7&rm=3",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793269122/oymzrdopmcox24tdazwl.jpg",
     alt: "Celebration fireworks",
   },
   {
     id: "hex-12",
-    src: "https://tse4.mm.bing.net/th/id/OIP.OGzBaR61tZGLlE5EOkge0wHaE8?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793262604/SK_04893_copy_1.jpg",
     alt: "Lifetime journey begins",
   },
    {
     id: "hex-13",
-    src: "https://crystallinestudio.com/image_gallery/thumbs/Crystalline-photography-4348.jpg",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793269008/qedsvsehdnkxjr7cajak.jpg",
     alt: "Lifetime journey begins",
   },
    {
     id: "hex-14",
-    src: "https://tse1.mm.bing.net/th/id/OIP.mUA7tSnDNYDnhhOvToMSEQHaHa?r=0&w=1365&h=1365&rs=1&pid=ImgDetMain&o=7&rm=3",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793268925/cibjnp7thkltvlkxmywt.jpg",
     alt: "Lifetime journey begins",
   },
    {
     id: "hex-15",
-    src: "https://i.pinimg.com/736x/da/8c/ec/da8cec9d55872bfe79cf2458ca2f35b3.jpg",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793260418/SK_08306_A_1.jpg",
     alt: "Lifetime journey begins",
   },
    {
     id: "hex-15",
-    src: "https://tse3.mm.bing.net/th/id/OIP._CGULKrGgDxA7zdCstfKEgHaE8?r=0&pid=ImgDet&w=474&h=316&rs=1&o=7&rm=3",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793268960/cfaoaro9w9ngn144dqcx.jpg",
     alt: "Lifetime journey begins",
   },
    {
     id: "hex-16",
-    src: "https://tse1.mm.bing.net/th/id/OIP.3QiM55bUZmcxKe_IzN07bQHaLH?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793269466/ddqda4x3o5icer08jnvq.jpg",
     alt: "Lifetime journey begins",
   },
    {
     id: "hex-17",
-    src: "https://tse2.mm.bing.net/th/id/OIP.3z0GPyE76IBK9h4_dFaD9wHaLH?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",
+    src: "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793269008/qedsvsehdnkxjr7cajak.jpg",
     alt: "Lifetime journey begins",
   }
 ];

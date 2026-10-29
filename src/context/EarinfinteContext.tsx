@@ -1,6 +1,13 @@
+
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from 'react';
 
 interface EarInfiniteState {
   topRow: string[];
@@ -13,6 +20,9 @@ interface EarInfiniteContextType {
   resetSingleImage: (row: 'top' | 'bottom', index: number) => void;
   resetImages: () => void;
 }
+
+const STORAGE_KEY = 'singlekey_ear_infinite_slider';
+const UPDATE_EVENT = 'ear_slider_updated';
 
 const initialTopRow = [
   'https://pestafiesta.com/wp-content/uploads/2021/05/Party-Venue.jpg',
@@ -30,111 +40,234 @@ const initialBottomRow = [
   'https://tse3.mm.bing.net/th/id/OIP.Br8Og0aLya7hgv6qMP18ZQHaFL?r=0&w=1024&h=716&rs=1&pid=ImgDetMain&o=7&rm=3',
 ];
 
-const EarInfiniteContext = createContext<EarInfiniteContextType | undefined>(undefined);
+const createDefaultState = (): EarInfiniteState => ({
+  topRow: [...initialTopRow],
+  bottomRow: [...initialBottomRow],
+});
 
-export function EarInfiniteProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<EarInfiniteState>({
-    topRow: initialTopRow,
-    bottomRow: initialBottomRow,
-  });
+const EarInfiniteContext = createContext<
+  EarInfiniteContextType | undefined
+>(undefined);
 
-  useEffect(() => {
+const isValidState = (value: unknown): value is EarInfiniteState => {
+  if (!value || typeof value !== 'object') return false;
+
+  const candidate = value as EarInfiniteState;
+
+  return (
+    Array.isArray(candidate.topRow) &&
+    Array.isArray(candidate.bottomRow) &&
+    candidate.topRow.length === initialTopRow.length &&
+    candidate.bottomRow.length === initialBottomRow.length &&
+    [...candidate.topRow, ...candidate.bottomRow].every(
+      (image) =>
+        typeof image === 'string' &&
+        image.length > 0 &&
+        !image.startsWith('data:image/')
+    )
+  );
+};
+
+export function EarInfiniteProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [state, setState] = useState<EarInfiniteState>(createDefaultState);
+
+  // Keep the latest state available when multiple uploads happen quickly.
+  const stateRef = useRef<EarInfiniteState>(createDefaultState());
+
+  const persistState = (nextState: EarInfiniteState) => {
+    stateRef.current = nextState;
+    setState(nextState);
+
     try {
-      const saved = localStorage.getItem('singlekey_ear_infinite_slider');
-      if (saved && saved !== 'undefined' && saved !== 'null') {
-        const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-          setState(parsed);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to parse ear infinite slider from localStorage", e);
-      localStorage.removeItem('singlekey_ear_infinite_slider');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+      window.dispatchEvent(new Event(UPDATE_EVENT));
+    } catch (error) {
+      console.error('Failed to save ear slider images:', error);
     }
-  }, []);
+  };
 
   useEffect(() => {
-    const handleStorageChange = () => {
+    const loadSavedState = () => {
       try {
-        const saved = localStorage.getItem('singlekey_ear_infinite_slider');
-        if (saved && saved !== 'undefined' && saved !== 'null') {
-          const parsed = JSON.parse(saved);
-          if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-            setState(parsed);
-          }
+        const saved = localStorage.getItem(STORAGE_KEY);
+
+        if (!saved || saved === 'undefined' || saved === 'null') {
+          return;
         }
-      } catch (e) {
-        console.error("Storage event parse error:", e);
+
+        const parsed: unknown = JSON.parse(saved);
+
+        if (isValidState(parsed)) {
+          stateRef.current = parsed;
+          setState(parsed);
+        } else {
+          // Remove invalid or old Base64 data to prevent quota errors.
+          localStorage.removeItem(STORAGE_KEY);
+
+          const defaults = createDefaultState();
+          stateRef.current = defaults;
+          setState(defaults);
+        }
+      } catch (error) {
+        console.error('Failed to load ear slider images:', error);
+
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+        } catch {
+          // Ignore localStorage cleanup errors.
+        }
+
+        const defaults = createDefaultState();
+        stateRef.current = defaults;
+        setState(defaults);
       }
+    };
+
+    loadSavedState();
+
+    const handleStorageChange = (event: Event) => {
+      // Ignore our own same-tab update event to avoid redundant state updates.
+      if (event.type === UPDATE_EVENT) return;
+
+      loadSavedState();
     };
 
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('ear_slider_updated', handleStorageChange);
+    window.addEventListener(UPDATE_EVENT, handleStorageChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('ear_slider_updated', handleStorageChange);
+      window.removeEventListener(UPDATE_EVENT, handleStorageChange);
     };
   }, []);
 
-  const updateImage = (row: 'top' | 'bottom', index: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64Image = e.target?.result as string;
-      setState((prev) => {
-        const updated = { ...prev };
-        if (row === 'top') {
-          const newTop = [...prev.topRow];
-          newTop[index] = base64Image;
-          updated.topRow = newTop;
-        } else {
-          const newBottom = [...prev.bottomRow];
-          newBottom[index] = base64Image;
-          updated.bottomRow = newBottom;
-        }
+  const updateImage = async (
+    row: 'top' | 'bottom',
+    index: number,
+    file: File
+  ) => {
+    try {
+      // Validate the selected file.
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file.');
+        return;
+      }
 
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('singlekey_ear_infinite_slider', JSON.stringify(updated));
-          window.dispatchEvent(new Event('ear_slider_updated'));
-        }
-        return updated;
-      });
-    };
-    reader.readAsDataURL(file);
-  };
+      // Keep uploads within 10 MB.
+      const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-  const resetSingleImage = (row: 'top' | 'bottom', index: number) => {
-    setState((prev) => {
-      const updated = { ...prev };
+      if (file.size > MAX_FILE_SIZE) {
+        alert('Image size must be 10 MB or less.');
+        return;
+      }
+
+      const cloudName =
+        process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+
+      const uploadPreset =
+        process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+      if (!cloudName || !uploadPreset) {
+        throw new Error(
+          'Cloudinary configuration is missing. Check your .env.local file.'
+        );
+      }
+
+      const rowImages =
+        row === 'top'
+          ? stateRef.current.topRow
+          : stateRef.current.bottomRow;
+
+      if (index < 0 || index >= rowImages.length) {
+        throw new Error('Invalid image index.');
+      }
+
+      // Upload the selected image to Cloudinary.
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', uploadPreset);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.secure_url) {
+        throw new Error(
+          result.error?.message || 'Cloudinary image upload failed.'
+        );
+      }
+
+      // Save only the Cloudinary URL, never Base64 data.
+      const currentState = stateRef.current;
+
+      const updatedState: EarInfiniteState = {
+        topRow: [...currentState.topRow],
+        bottomRow: [...currentState.bottomRow],
+      };
+
       if (row === 'top') {
-        const newTop = [...prev.topRow];
-        newTop[index] = initialTopRow[index];
-        updated.topRow = newTop;
+        updatedState.topRow[index] = result.secure_url;
       } else {
-        const newBottom = [...prev.bottomRow];
-        newBottom[index] = initialBottomRow[index];
-        updated.bottomRow = newBottom;
+        updatedState.bottomRow[index] = result.secure_url;
       }
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('singlekey_ear_infinite_slider', JSON.stringify(updated));
-        window.dispatchEvent(new Event('ear_slider_updated'));
-      }
-      return updated;
-    });
-  };
+      persistState(updatedState);
+    } catch (error) {
+      console.error('Ear slider image upload failed:', error);
 
-  const resetImages = () => {
-    const defaultState = { topRow: initialTopRow, bottomRow: initialBottomRow };
-    setState(defaultState);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('singlekey_ear_infinite_slider', JSON.stringify(defaultState));
-      window.dispatchEvent(new Event('ear_slider_updated'));
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Image upload failed. Please try again.'
+      );
     }
   };
 
+  const resetSingleImage = (
+    row: 'top' | 'bottom',
+    index: number
+  ) => {
+    const currentState = stateRef.current;
+
+    const updatedState: EarInfiniteState = {
+      topRow: [...currentState.topRow],
+      bottomRow: [...currentState.bottomRow],
+    };
+
+    if (row === 'top') {
+      if (index < 0 || index >= initialTopRow.length) return;
+      updatedState.topRow[index] = initialTopRow[index];
+    } else {
+      if (index < 0 || index >= initialBottomRow.length) return;
+      updatedState.bottomRow[index] = initialBottomRow[index];
+    }
+
+    persistState(updatedState);
+  };
+
+  const resetImages = () => {
+    persistState(createDefaultState());
+  };
+
   return (
-    <EarInfiniteContext.Provider value={{ state, updateImage, resetSingleImage, resetImages }}>
+    <EarInfiniteContext.Provider
+      value={{
+        state,
+        updateImage,
+        resetSingleImage,
+        resetImages,
+      }}
+    >
       {children}
     </EarInfiniteContext.Provider>
   );
@@ -142,6 +275,12 @@ export function EarInfiniteProvider({ children }: { children: React.ReactNode })
 
 export function useEarInfinite() {
   const context = useContext(EarInfiniteContext);
-  if (!context) throw new Error('useEarInfinite must be used within an EarInfiniteProvider');
+
+  if (!context) {
+    throw new Error(
+      'useEarInfinite must be used within an EarInfiniteProvider'
+    );
+  }
+
   return context;
 }

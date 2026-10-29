@@ -1,7 +1,7 @@
 "use client";
 
 export default function BabyIntro() {
-  const bgImageUrl = "https://th.bing.com/th/id/R.ffa4aa11aedba1dc9992b07cec69feff?rik=M9aqq%2bM4JD3zlg&riu=http%3a%2f%2fjasmineleephotography.com%2fwp-content%2fuploads%2f2013%2f11%2findian_baby_shower_photography_07.jpg&ehk=yiT2IytavdcRqT%2fIN0bU%2be%2bNnyVUYE%2bMbZ2pNLRcd%2bc%3d&risl=&pid=ImgRaw&r=0";
+  const bgImageUrl = "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793260146/SK_08649_A_1.jpg";
 
   return (
     <main className="relative w-full h-screen overflow-hidden bg-black">

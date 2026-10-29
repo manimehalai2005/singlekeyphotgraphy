@@ -1,6 +1,13 @@
+
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from 'react';
 
 interface WeddingInfiniteState {
   topRow: string[];
@@ -9,10 +16,26 @@ interface WeddingInfiniteState {
 
 interface WeddingInfiniteContextType {
   state: WeddingInfiniteState;
-  updateImage: (row: 'top' | 'bottom', index: number, file: File) => void;
-  resetSingleImage: (row: 'top' | 'bottom', index: number) => void;
+  updateImage: (
+    row: 'top' | 'bottom',
+    index: number,
+    file: File
+  ) => Promise<void>;
+  resetSingleImage: (
+    row: 'top' | 'bottom',
+    index: number
+  ) => void;
   resetImages: () => void;
 }
+
+const STORAGE_KEY = 'singlekey_wedding_infinite_slider';
+const UPDATE_EVENT = 'wedding_slider_updated';
+
+const CLOUDINARY_CLOUD_NAME =
+  process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+
+const CLOUDINARY_UPLOAD_PRESET =
+  process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
 const initialTopRow = [
   'https://pestafiesta.com/wp-content/uploads/2021/05/Party-Venue.jpg',
@@ -30,111 +53,227 @@ const initialBottomRow = [
   'https://tse3.mm.bing.net/th/id/OIP.Br8Og0aLya7hgv6qMP18ZQHaFL?r=0&w=1024&h=716&rs=1&pid=ImgDetMain&o=7&rm=3',
 ];
 
-const WeddingInfiniteContext = createContext<WeddingInfiniteContextType | undefined>(undefined);
+const WeddingInfiniteContext =
+  createContext<WeddingInfiniteContextType | undefined>(undefined);
 
-export function WeddingInfiniteProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<WeddingInfiniteState>({
-    topRow: initialTopRow,
-    bottomRow: initialBottomRow,
-  });
+const getDefaultState = (): WeddingInfiniteState => ({
+  topRow: [...initialTopRow],
+  bottomRow: [...initialBottomRow],
+});
+
+// Old Base64 data URLs are replaced with the original default URLs.
+// Only valid image URLs are kept in localStorage.
+const sanitizeState = (value: unknown): WeddingInfiniteState => {
+  const parsed = value as Partial<WeddingInfiniteState> | null;
+
+  const sanitizeRow = (
+    savedRow: unknown,
+    defaults: string[]
+  ): string[] => {
+    if (!Array.isArray(savedRow)) {
+      return [...defaults];
+    }
+
+    return defaults.map((defaultUrl, index) => {
+      const savedUrl = savedRow[index];
+
+      if (
+        typeof savedUrl === 'string' &&
+        savedUrl.trim() !== '' &&
+        !savedUrl.startsWith('data:')
+      ) {
+        return savedUrl;
+      }
+
+      return defaultUrl;
+    });
+  };
+
+  return {
+    topRow: sanitizeRow(parsed?.topRow, initialTopRow),
+    bottomRow: sanitizeRow(parsed?.bottomRow, initialBottomRow),
+  };
+};
+
+export function WeddingInfiniteProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [state, setState] =
+    useState<WeddingInfiniteState>(getDefaultState);
+
+  // Keeps the latest state available for consecutive updates.
+  const stateRef = useRef<WeddingInfiniteState>(getDefaultState());
+
+  const applyState = (nextState: WeddingInfiniteState) => {
+    stateRef.current = nextState;
+    setState(nextState);
+  };
+
+  const persistState = (nextState: WeddingInfiniteState) => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+      window.dispatchEvent(new Event(UPDATE_EVENT));
+    } catch (error) {
+      console.error('Failed to save wedding slider state:', error);
+      throw error;
+    }
+  };
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('singlekey_wedding_infinite_slider');
+      const saved = localStorage.getItem(STORAGE_KEY);
+
       if (saved && saved !== 'undefined' && saved !== 'null') {
         const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-          setState(parsed);
-        }
+        const sanitized = sanitizeState(parsed);
+
+        applyState(sanitized);
+
+        // Migrate old Base64 values to URL-only storage.
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
       }
-    } catch (e) {
-      console.error("Failed to parse wedding infinite slider from localStorage", e);
-      localStorage.removeItem('singlekey_wedding_infinite_slider');
+    } catch (error) {
+      console.error(
+        'Failed to load wedding infinite slider from localStorage:',
+        error
+      );
+
+      localStorage.removeItem(STORAGE_KEY);
+      applyState(getDefaultState());
     }
   }, []);
 
   useEffect(() => {
     const handleStorageChange = () => {
       try {
-        const saved = localStorage.getItem('singlekey_wedding_infinite_slider');
+        const saved = localStorage.getItem(STORAGE_KEY);
+
         if (saved && saved !== 'undefined' && saved !== 'null') {
-          const parsed = JSON.parse(saved);
-          if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-            setState(parsed);
-          }
+          const sanitized = sanitizeState(JSON.parse(saved));
+          applyState(sanitized);
         }
-      } catch (e) {
-        console.error("Storage event parse error:", e);
+      } catch (error) {
+        console.error('Wedding slider storage event error:', error);
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('wedding_slider_updated', handleStorageChange);
+    window.addEventListener(UPDATE_EVENT, handleStorageChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('wedding_slider_updated', handleStorageChange);
+      window.removeEventListener(UPDATE_EVENT, handleStorageChange);
     };
   }, []);
 
-  const updateImage = (row: 'top' | 'bottom', index: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64Image = e.target?.result as string;
-      setState((prev) => {
-        const updated = { ...prev };
-        if (row === 'top') {
-          const newTop = [...prev.topRow];
-          newTop[index] = base64Image;
-          updated.topRow = newTop;
-        } else {
-          const newBottom = [...prev.bottomRow];
-          newBottom[index] = base64Image;
-          updated.bottomRow = newBottom;
-        }
+  const updateImage = async (
+    row: 'top' | 'bottom',
+    index: number,
+    file: File
+  ): Promise<void> => {
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Please select a valid image file.');
+    }
 
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('singlekey_wedding_infinite_slider', JSON.stringify(updated));
-          window.dispatchEvent(new Event('wedding_slider_updated'));
-        }
-        return updated;
-      });
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error('Image size must be 10 MB or less.');
+    }
+
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+      throw new Error(
+        'Cloudinary configuration is missing. Check your .env.local file.'
+      );
+    }
+
+    const currentState = stateRef.current;
+    const currentRow =
+      row === 'top' ? currentState.topRow : currentState.bottomRow;
+
+    if (index < 0 || index >= currentRow.length) {
+      throw new Error('Invalid wedding slider image index.');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.secure_url) {
+      throw new Error(
+        result.error?.message || 'Cloudinary image upload failed.'
+      );
+    }
+
+    const imageUrl: string = result.secure_url;
+
+    const latestState = stateRef.current;
+
+    const updatedState: WeddingInfiniteState = {
+      topRow: [...latestState.topRow],
+      bottomRow: [...latestState.bottomRow],
     };
-    reader.readAsDataURL(file);
+
+    if (row === 'top') {
+      updatedState.topRow[index] = imageUrl;
+    } else {
+      updatedState.bottomRow[index] = imageUrl;
+    }
+
+    applyState(updatedState);
+    persistState(updatedState);
   };
 
-  const resetSingleImage = (row: 'top' | 'bottom', index: number) => {
-    setState((prev) => {
-      const updated = { ...prev };
-      if (row === 'top') {
-        const newTop = [...prev.topRow];
-        newTop[index] = initialTopRow[index];
-        updated.topRow = newTop;
-      } else {
-        const newBottom = [...prev.bottomRow];
-        newBottom[index] = initialBottomRow[index];
-        updated.bottomRow = newBottom;
-      }
+  const resetSingleImage = (
+    row: 'top' | 'bottom',
+    index: number
+  ) => {
+    const latestState = stateRef.current;
+    const updatedState: WeddingInfiniteState = {
+      topRow: [...latestState.topRow],
+      bottomRow: [...latestState.bottomRow],
+    };
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('singlekey_wedding_infinite_slider', JSON.stringify(updated));
-        window.dispatchEvent(new Event('wedding_slider_updated'));
-      }
-      return updated;
-    });
+    if (row === 'top') {
+      if (index < 0 || index >= initialTopRow.length) return;
+      updatedState.topRow[index] = initialTopRow[index];
+    } else {
+      if (index < 0 || index >= initialBottomRow.length) return;
+      updatedState.bottomRow[index] = initialBottomRow[index];
+    }
+
+    applyState(updatedState);
+    persistState(updatedState);
   };
 
   const resetImages = () => {
-    const defaultState = { topRow: initialTopRow, bottomRow: initialBottomRow };
-    setState(defaultState);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('singlekey_wedding_infinite_slider', JSON.stringify(defaultState));
-      window.dispatchEvent(new Event('wedding_slider_updated'));
-    }
+    const defaultState = getDefaultState();
+
+    applyState(defaultState);
+    persistState(defaultState);
   };
 
   return (
-    <WeddingInfiniteContext.Provider value={{ state, updateImage, resetSingleImage, resetImages }}>
+    <WeddingInfiniteContext.Provider
+      value={{
+        state,
+        updateImage,
+        resetSingleImage,
+        resetImages,
+      }}
+    >
       {children}
     </WeddingInfiniteContext.Provider>
   );
@@ -142,6 +281,12 @@ export function WeddingInfiniteProvider({ children }: { children: React.ReactNod
 
 export function useWeddingInfinite() {
   const context = useContext(WeddingInfiniteContext);
-  if (!context) throw new Error('useWeddingInfinite must be used within a WeddingInfiniteProvider');
+
+  if (!context) {
+    throw new Error(
+      'useWeddingInfinite must be used within a WeddingInfiniteProvider'
+    );
+  }
+
   return context;
 }

@@ -1,6 +1,13 @@
+
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from 'react';
 
 interface BabyInfiniteState {
   topRow: string[];
@@ -9,110 +16,278 @@ interface BabyInfiniteState {
 
 interface BabyInfiniteContextType {
   state: BabyInfiniteState;
-  updateImage: (row: 'top' | 'index' | 'bottom', index: number, file: File) => void;
+  updateImage: (
+    row: 'top' | 'index' | 'bottom',
+    index: number,
+    file: File
+  ) => void;
   resetImages: () => void;
 }
 
+const STORAGE_KEY = 'singlekey_baby_infinite_slider';
+
+const CLOUD_NAME =
+  process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+
+const UPLOAD_PRESET =
+  process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
 const initialTopRow = [
-  'https://pestafiesta.com/wp-content/uploads/2021/05/Party-Venue.jpg',
-  'https://mir-s3-cdn-cf.behance.net/project_modules/max_1200/9bca2982139067.5d143f90d55eb.jpg',
-  'https://th.bing.com/th/id/R.ffa4aa11aedba1dc9992b07cec69feff?rik=M9aqq%2bM4JD3zlg&riu=http%3a%2f%2fjasmineleephotography.com%2fwp-content%2fuploads%2f2013%2f11%2findian_baby_shower_photography_07.jpg&ehk=yiT2IytavdcRqT%2fIN0bU%2be%2bNnyVUYE%2bMbZ2pNLRcd%2bc%3d&risl=&pid=ImgRaw&r=0',
-  'https://5.imimg.com/data5/CW/UF/MJ/GLADMIN-90860557/selection-882-500x500.png',
-  'https://tse3.mm.bing.net/th/id/OIP.Tre-c80NPWt_7qeWqFl8-gHaFG?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
+  'https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793262717/SK_08277_A_1.jpg',
+  'https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793262604/SK_04893_copy_1.jpg',
+  'https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793260028/SK_08284_A_1.jpg',
+  'https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793260146/SK_08649_A_1.jpg',
+  'https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793258010/SK_08489_A.jpg',
 ];
 
 const initialBottomRow = [
-  'https://cdn0.weddingwire.in/article/8737/3_2/960/jpg/27378-indian-wedding-couple-hitched-clicked-cover.jpeg',
-  'https://mir-s3-cdn-cf.behance.net/project_modules/disp/bcd6f19083983.560c82d4b28f5.jpg',
-  'https://tse3.mm.bing.net/th/id/OIP.QhUqxHns8TV2TbjdsRfJBQHaE8?r=0&w=735&h=490&rs=1&pid=ImgDetMain&o=7&rm=3',
-  'https://miro.medium.com/v2/resize:fit:1400/1*QCUh5DjZI-t1BrP_qDDFTQ.jpeg',
-  'https://tse3.mm.bing.net/th/id/OIP.Br8Og0aLya7hgv6qMP18ZQHaFL?r=0&w=1024&h=716&rs=1&pid=ImgDetMain&o=7&rm=3',
+  'https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793259540/SK_08595_a_1.jpg',
+  'https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793259227/SK_08588_a_1.jpg',
+  'https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793259647/SK_08301_A_1.jpg',
+  'https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793259769/SK_08626_A_1.jpg',
+  'https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793259892/SK_08284_A-Recovered_A_1.jpg',
 ];
 
-const BabyInfiniteContext = createContext<BabyInfiniteContextType | undefined>(undefined);
+const initialState: BabyInfiniteState = {
+  topRow: initialTopRow,
+  bottomRow: initialBottomRow,
+};
 
-export function BabyInfiniteProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<BabyInfiniteState>({
-    topRow: initialTopRow,
-    bottomRow: initialBottomRow,
-  });
+const BabyInfiniteContext =
+  createContext<BabyInfiniteContextType | undefined>(undefined);
+
+function saveState(data: BabyInfiniteState): boolean {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    return true;
+  } catch (error) {
+    console.error('Failed to save slider URLs:', error);
+    return false;
+  }
+}
+
+function readSavedState(): BabyInfiniteState | null {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (!saved || saved === 'undefined' || saved === 'null') {
+      return null;
+    }
+
+    const parsed = JSON.parse(saved);
+
+    if (
+      !parsed ||
+      !Array.isArray(parsed.topRow) ||
+      !Array.isArray(parsed.bottomRow)
+    ) {
+      return null;
+    }
+
+    const images = [...parsed.topRow, ...parsed.bottomRow];
+
+    // Remove legacy Base64 data that caused storage quota errors.
+    if (
+      !images.every(
+        (image) =>
+          typeof image === 'string' &&
+          !image.startsWith('data:')
+      )
+    ) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+
+    return {
+      topRow: parsed.topRow,
+      bottomRow: parsed.bottomRow,
+    };
+  } catch (error) {
+    console.error('Failed to read saved slider:', error);
+    return null;
+  }
+}
+
+export function BabyInfiniteProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [state, setState] =
+    useState<BabyInfiniteState>(initialState);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('singlekey_baby_infinite_slider');
-      if (saved && saved !== 'undefined' && saved !== 'null') {
-        const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-          setState(parsed);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to parse baby infinite slider from localStorage", e);
-      localStorage.removeItem('singlekey_baby_infinite_slider');
+    const saved = readSavedState();
+
+    if (saved) {
+      setState(saved);
     }
   }, []);
 
   useEffect(() => {
     const handleStorageChange = () => {
-      try {
-        const saved = localStorage.getItem('singlekey_baby_infinite_slider');
-        if (saved && saved !== 'undefined' && saved !== 'null') {
-          const parsed = JSON.parse(saved);
-          if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-            setState(parsed);
-          }
-        }
-      } catch (e) {
-        console.error("Storage event parse error:", e);
+      const saved = readSavedState();
+
+      if (saved) {
+        setState(saved);
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('baby_slider_updated', handleStorageChange);
+    window.addEventListener(
+      'baby_slider_updated',
+      handleStorageChange
+    );
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('baby_slider_updated', handleStorageChange);
+      window.removeEventListener(
+        'storage',
+        handleStorageChange
+      );
+      window.removeEventListener(
+        'baby_slider_updated',
+        handleStorageChange
+      );
     };
   }, []);
 
-  const updateImage = (row: 'top' | 'index' | 'bottom', index: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64Image = e.target?.result as string;
-      setState((prev) => {
-        const updated = { ...prev };
+  const updateImage = useCallback(
+    async (
+      row: 'top' | 'index' | 'bottom',
+      index: number,
+      file: File
+    ) => {
+      try {
+        if (!file.type.startsWith('image/')) {
+          alert('Please select a valid image.');
+          return;
+        }
+
+        if (!CLOUD_NAME || !UPLOAD_PRESET) {
+          alert(
+            'Cloudinary configuration missing. Check .env.local and restart the server.'
+          );
+          return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+          alert(
+            'Image is larger than 10 MB. Please compress it before uploading.'
+          );
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', UPLOAD_PRESET);
+
+        // Upload the original file directly to Cloudinary.
+        const response = await fetch(
+          `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+          {
+            method: 'POST',
+            body: formData,
+          }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.secure_url) {
+          console.error('Cloudinary upload failed:', result);
+          alert(
+            result.error?.message ||
+              'Image upload failed. Check your Cloudinary preset.'
+          );
+          return;
+        }
+
+        // Save only the returned URL, never Base64 image data.
+        const imageUrl: string = result.secure_url;
+
+        setState((previous) => {
+          const updated: BabyInfiniteState = {
+            topRow: [...previous.topRow],
+            bottomRow: [...previous.bottomRow],
+          };
+
+          if (row === 'top') {
+            if (index < 0 || index >= updated.topRow.length) {
+              return previous;
+            }
+
+            updated.topRow[index] = imageUrl;
+          } else {
+            if (
+              index < 0 ||
+              index >= updated.bottomRow.length
+            ) {
+              return previous;
+            }
+
+            updated.bottomRow[index] = imageUrl;
+          }
+
+          return updated;
+        });
+
+        // Save outside the state updater to avoid side effects.
+        const updated: BabyInfiniteState = {
+          topRow: [...state.topRow],
+          bottomRow: [...state.bottomRow],
+        };
+
         if (row === 'top') {
-          const newTop = [...prev.topRow];
-          newTop[index] = base64Image;
-          updated.topRow = newTop;
+          if (index < 0 || index >= updated.topRow.length) {
+            return;
+          }
+
+          updated.topRow[index] = imageUrl;
         } else {
-          const newBottom = [...prev.bottomRow];
-          newBottom[index] = base64Image;
-          updated.bottomRow = newBottom;
+          if (
+            index < 0 ||
+            index >= updated.bottomRow.length
+          ) {
+            return;
+          }
+
+          updated.bottomRow[index] = imageUrl;
         }
 
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('singlekey_baby_infinite_slider', JSON.stringify(updated));
-          window.dispatchEvent(new Event('baby_slider_updated'));
-        }
-        return updated;
-      });
+        saveState(updated);
+
+        window.dispatchEvent(
+          new Event('baby_slider_updated')
+        );
+
+        alert('Image uploaded successfully!');
+      } catch (error) {
+        console.error('Image upload error:', error);
+        alert(
+          'Unable to upload image. Check your internet connection and try again.'
+        );
+      }
+    },
+    [state]
+  );
+
+  const resetImages = useCallback(() => {
+    const defaultState: BabyInfiniteState = {
+      topRow: [...initialTopRow],
+      bottomRow: [...initialBottomRow],
     };
-    reader.readAsDataURL(file);
-  };
 
-  const resetImages = () => {
-    const defaultState = { topRow: initialTopRow, bottomRow: initialBottomRow };
     setState(defaultState);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('singlekey_baby_infinite_slider', JSON.stringify(defaultState));
-      window.dispatchEvent(new Event('baby_slider_updated'));
-    }
-  };
+    saveState(defaultState);
+
+    window.dispatchEvent(
+      new Event('baby_slider_updated')
+    );
+  }, []);
 
   return (
-    <BabyInfiniteContext.Provider value={{ state, updateImage, resetImages }}>
+    <BabyInfiniteContext.Provider
+      value={{ state, updateImage, resetImages }}
+    >
       {children}
     </BabyInfiniteContext.Provider>
   );
@@ -120,6 +295,12 @@ export function BabyInfiniteProvider({ children }: { children: React.ReactNode }
 
 export function useBabyInfinite() {
   const context = useContext(BabyInfiniteContext);
-  if (!context) throw new Error('useBabyInfinite must be used within a BabyInfiniteProvider');
+
+  if (!context) {
+    throw new Error(
+      'useBabyInfinite must be used within a BabyInfiniteProvider'
+    );
+  }
+
   return context;
 }

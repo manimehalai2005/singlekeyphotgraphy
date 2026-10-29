@@ -60,7 +60,7 @@ export default function BabyShowerScrapbookSection() {
             <div className="sm:col-span-7 relative aspect-[4/5] rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-xl group">
               <div className="w-full h-full">
                 <img
-                  src="https://i.pinimg.com/736x/c0/13/07/c013072cdef60e34a80bf1abc83c285f.jpg"
+                  src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793259892/SK_08284_A-Recovered_A_1.jpg"
                   alt="Mom to be blessing ceremony"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
@@ -74,7 +74,7 @@ export default function BabyShowerScrapbookSection() {
               <div className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-xl group">
                 <div className="w-full h-full">
                   <img
-                    src="https://i0.wp.com/cenduparam.com/wp-content/uploads/2019/03/IMG_0157.jpg?resize=768%2C1024&ssl=1"
+                    src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793260146/SK_08649_A_1.jpg"
                     alt="Traditional baby shower feast"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />
@@ -85,7 +85,7 @@ export default function BabyShowerScrapbookSection() {
               <div className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-xl group">
                 <div className="w-full h-full">
                   <img
-                    src="https://www.chocovira.in/wp-content/uploads/2020/08/Baby-Shower-Ceremony-Outfit-In-India.jpg"
+                    src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793260418/SK_08306_A_1.jpg"
                     alt="Baby shower decorations"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />

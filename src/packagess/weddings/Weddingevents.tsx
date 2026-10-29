@@ -153,7 +153,7 @@ export default function WeddingEvents() {
               {/* Front Side */}
               <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-2xl overflow-hidden">
                 <img
-                  src="https://thetalesoftradition.com/wp-content/uploads/2024/01/vivekkrishnanphotography-618-1024x683.jpg"
+                  src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793270862/12x15_2.jpg"
                   alt="Bride and groom couple portrait"
                   className="w-full h-full object-cover"
                 />
@@ -188,7 +188,7 @@ export default function WeddingEvents() {
               {/* Front Side */}
               <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-2xl overflow-hidden">
                 <img
-                  src="https://images.bergerpaints.com/s3fs-public/2024-08/Haldi-Ceremony.jpg?VersionId=FqcI.yffGML4MYmO984aL0JG6GjWaPOJ&format=webp&width=3840&quality=75"
+                  src="https://i.pinimg.com/originals/b3/9d/e8/b39de8850ad8495558856c7d1dad614f.jpg"
                   alt="Traditional wedding ceremony details"
                   className="w-full h-full object-cover"
                 />
@@ -200,7 +200,7 @@ export default function WeddingEvents() {
               {/* Back Side */}
               <div className="absolute inset-0 w-full h-full [transform:rotateY(180deg)] [backface-visibility:hidden] rounded-2xl overflow-hidden border border-[#C89b7b]/40">
                 <img
-                  src="https://images.bergerpaints.com/s3fs-public/2024-08/Haldi-Ceremony.jpg?VersionId=FqcI.yffGML4MYmO984aL0JG6GjWaPOJ&format=webp&width=3840&quality=75"
+                  src="https://images.bergerpaints.com/s3fs-public/2024-08/Haldi-Ceremony.jpg?VersionId=FqcI.yffG"
                   alt="Haldi and Mehendi Back visual"
                   className="w-full h-full object-cover brightness-50 blur-[2px]"
                 />
@@ -223,7 +223,7 @@ export default function WeddingEvents() {
               {/* Front Side */}
               <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-2xl overflow-hidden">
                 <img
-                  src="https://www.jaihindhphotography.com/wp-content/uploads/2023/10/Pre-wedding-photography-styles-3.jpg"
+                  src="https://dsphotography.info/wp-content/uploads/2025/02/DSS_7381.jpg"
                   alt="Reception couple celebration"
                   className="w-full h-full object-cover"
                 />
@@ -258,7 +258,7 @@ export default function WeddingEvents() {
               {/* Front Side */}
               <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-2xl overflow-hidden">
                 <img
-                  src="https://img.perniaspopupshop.com/store-locator-v2/uploads/Nishchayathramsec1mob3_3b5233dcb0.jpg"
+                  src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793268960/cfaoaro9w9ngn144dqcx.jpg"
                   alt="Ring exchange engagement moment"
                   className="w-full h-full object-cover"
                 />

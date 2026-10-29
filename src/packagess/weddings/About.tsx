@@ -21,7 +21,7 @@ export default function AboutUsPage() {
           {/* Top-left image */}
           <div className="relative w-full h-64 rounded-2xl overflow-hidden shadow-xl transform -rotate-2 hover:rotate-0 transition-transform duration-300">
             <img
-              src="https://5.imimg.com/data5/SELLER/Default/2021/7/WR/RG/MY/52199271/dsc07659-02-1000x1000.jpg"
+              src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793270862/12x15_2.jpg"
               alt="Hotel exterior and pool"
               className="w-full h-full object-cover"
             />
@@ -29,7 +29,7 @@ export default function AboutUsPage() {
           {/* Bottom-left image */}
           <div className="relative w-4/5 h-56 rounded-2xl overflow-hidden shadow-xl ml-auto transform rotate-1 hover:rotate-0 transition-transform duration-300">
             <img
-              src="https://tse1.explicit.bing.net/th/id/OIP._S2bIMS-ZpHJvIJB0WfAawHaLG?r=0&w=1201&h=1800&rs=1&pid=ImgDetMain&o=7&rm=3"
+              src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793269556/pwo35gw4kgtvmebtv2zs.jpg"
               alt="Tropical beach and sea"
               className="w-full h-full object-cover"
             />
@@ -72,7 +72,8 @@ export default function AboutUsPage() {
           {/* Top-right image */}
           <div className="relative w-4/5 h-48 rounded-2xl overflow-hidden shadow-xl mr-auto transform rotate-2 hover:rotate-0 transition-transform duration-300">
             <img
-              src="https://tse1.explicit.bing.net/th/id/OIP.APByl2_niDMzW2_BdN-jGwAAAA?r=0&w=450&h=300&rs=1&pid=ImgDetMain&o=7&rm=3"
+              src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793260146/SK_08649_A_1.jpg"
+             
               alt="Swimming pool sunset view"
               className="w-full h-full object-cover"
             />
@@ -80,7 +81,7 @@ export default function AboutUsPage() {
           {/* Middle-right image */}
           <div className="relative w-full h-52 rounded-2xl overflow-hidden shadow-xl transform -rotate-1 hover:rotate-0 transition-transform duration-300">
             <img
-              src="https://tse1.mm.bing.net/th/id/OIP.koPZN6_POJucEZrdAJQukAHaE8?r=0&w=6720&h=4480&rs=1&pid=ImgDetMain&o=7&rm=3"
+              src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793268960/cfaoaro9w9ngn144dqcx.jpg"
               alt="Palm tree and resort"
               className="w-full h-full object-cover"
             />
@@ -88,7 +89,7 @@ export default function AboutUsPage() {
           {/* Bottom-right image */}
           <div className="relative w-3/4 h-40 rounded-2xl overflow-hidden shadow-xl ml-auto transform rotate-3 hover:rotate-0 transition-transform duration-300">
             <img
-              src="https://i.pinimg.com/736x/29/80/7f/29807f8be20d41551652c5a7b8c20922.jpg"
+              src="https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793268925/cibjnp7thkltvlkxmywt.jpg"
               alt="Luxury pool relaxing"
               className="w-full h-full object-cover"
             />

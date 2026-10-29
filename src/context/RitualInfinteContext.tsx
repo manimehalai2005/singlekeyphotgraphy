@@ -1,6 +1,13 @@
+
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from 'react';
 
 interface RitualInfiniteState {
   topRow: string[];
@@ -9,7 +16,11 @@ interface RitualInfiniteState {
 
 interface RitualInfiniteContextType {
   state: RitualInfiniteState;
-  updateImage: (row: 'top' | 'bottom', index: number, file: File) => void;
+  updateImage: (
+    row: 'top' | 'bottom',
+    index: number,
+    file: File
+  ) => Promise<void>;
   resetSingleImage: (row: 'top' | 'bottom', index: number) => void;
   resetImages: () => void;
 }
@@ -30,111 +41,240 @@ const initialBottomRow = [
   'https://tse3.mm.bing.net/th/id/OIP.Br8Og0aLya7hgv6qMP18ZQHaFL?r=0&w=1024&h=716&rs=1&pid=ImgDetMain&o=7&rm=3',
 ];
 
-const RitualInfiniteContext = createContext<RitualInfiniteContextType | undefined>(undefined);
+const STORAGE_KEY = 'singlekey_ritual_infinite_slider';
+const UPDATE_EVENT = 'ritual_slider_updated';
 
-export function RitualInfiniteProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<RitualInfiniteState>({
-    topRow: initialTopRow,
-    bottomRow: initialBottomRow,
+const CLOUDINARY_CLOUD_NAME =
+  process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+
+const CLOUDINARY_UPLOAD_PRESET =
+  process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+const initialState: RitualInfiniteState = {
+  topRow: initialTopRow,
+  bottomRow: initialBottomRow,
+};
+
+const RitualInfiniteContext =
+  createContext<RitualInfiniteContextType | undefined>(undefined);
+
+function sanitizeRow(savedRow: unknown, defaults: string[]): string[] {
+  return defaults.map((defaultUrl, index) => {
+    if (!Array.isArray(savedRow)) {
+      return defaultUrl;
+    }
+
+    const savedUrl = savedRow[index];
+
+    if (
+      typeof savedUrl === 'string' &&
+      savedUrl.trim() !== '' &&
+      !savedUrl.startsWith('data:')
+    ) {
+      return savedUrl;
+    }
+
+    return defaultUrl;
   });
+}
+
+function sanitizeState(value: unknown): RitualInfiniteState {
+  const saved = value as Partial<RitualInfiniteState> | null;
+
+  return {
+    topRow: sanitizeRow(saved?.topRow, initialTopRow),
+    bottomRow: sanitizeRow(saved?.bottomRow, initialBottomRow),
+  };
+}
+
+function readSavedState(): RitualInfiniteState {
+  if (typeof window === 'undefined') {
+    return initialState;
+  }
+
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (!saved || saved === 'undefined' || saved === 'null') {
+      return initialState;
+    }
+
+    const parsed: unknown = JSON.parse(saved);
+    const sanitized = sanitizeState(parsed);
+
+    // Remove legacy Base64 image data from localStorage.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+
+    return sanitized;
+  } catch (error) {
+    console.error('Failed to read ritual infinite slider:', error);
+    localStorage.removeItem(STORAGE_KEY);
+    return initialState;
+  }
+}
+
+export function RitualInfiniteProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [state, setState] =
+    useState<RitualInfiniteState>(initialState);
+
+  const stateRef = useRef<RitualInfiniteState>(initialState);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('singlekey_ritual_infinite_slider');
-      if (saved && saved !== 'undefined' && saved !== 'null') {
-        const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-          setState(parsed);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to parse ritual infinite slider from localStorage", e);
-      localStorage.removeItem('singlekey_ritual_infinite_slider');
-    }
+    const savedState = readSavedState();
+
+    stateRef.current = savedState;
+    setState(savedState);
   }, []);
 
   useEffect(() => {
     const handleStorageChange = () => {
-      try {
-        const saved = localStorage.getItem('singlekey_ritual_infinite_slider');
-        if (saved && saved !== 'undefined' && saved !== 'null') {
-          const parsed = JSON.parse(saved);
-          if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-            setState(parsed);
-          }
-        }
-      } catch (e) {
-        console.error("Storage event parse error:", e);
-      }
+      const savedState = readSavedState();
+
+      stateRef.current = savedState;
+      setState(savedState);
     };
 
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('ritual_slider_updated', handleStorageChange);
+    window.addEventListener(UPDATE_EVENT, handleStorageChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('ritual_slider_updated', handleStorageChange);
+      window.removeEventListener(UPDATE_EVENT, handleStorageChange);
     };
   }, []);
 
-  const updateImage = (row: 'top' | 'bottom', index: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64Image = e.target?.result as string;
-      setState((prev) => {
-        const updated = { ...prev };
-        if (row === 'top') {
-          const newTop = [...prev.topRow];
-          newTop[index] = base64Image;
-          updated.topRow = newTop;
-        } else {
-          const newBottom = [...prev.bottomRow];
-          newBottom[index] = base64Image;
-          updated.bottomRow = newBottom;
-        }
+  const persistState = (updatedState: RitualInfiniteState) => {
+    stateRef.current = updatedState;
+    setState(updatedState);
 
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('singlekey_ritual_infinite_slider', JSON.stringify(updated));
-          window.dispatchEvent(new Event('ritual_slider_updated'));
-        }
-        return updated;
-      });
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const resetSingleImage = (row: 'top' | 'bottom', index: number) => {
-    setState((prev) => {
-      const updated = { ...prev };
-      if (row === 'top') {
-        const newTop = [...prev.topRow];
-        newTop[index] = initialTopRow[index];
-        updated.topRow = newTop;
-      } else {
-        const newBottom = [...prev.bottomRow];
-        newBottom[index] = initialBottomRow[index];
-        updated.bottomRow = newBottom;
-      }
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('singlekey_ritual_infinite_slider', JSON.stringify(updated));
-        window.dispatchEvent(new Event('ritual_slider_updated'));
-      }
-      return updated;
-    });
-  };
-
-  const resetImages = () => {
-    const defaultState = { topRow: initialTopRow, bottomRow: initialBottomRow };
-    setState(defaultState);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('singlekey_ritual_infinite_slider', JSON.stringify(defaultState));
-      window.dispatchEvent(new Event('ritual_slider_updated'));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedState));
+      window.dispatchEvent(new Event(UPDATE_EVENT));
     }
   };
 
+  const updateImage = async (
+    row: 'top' | 'bottom',
+    index: number,
+    file: File
+  ): Promise<void> => {
+    const currentRow =
+      row === 'top'
+        ? stateRef.current.topRow
+        : stateRef.current.bottomRow;
+
+    if (index < 0 || index >= currentRow.length) {
+      throw new Error('Invalid image index.');
+    }
+
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Please select a valid image file.');
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error('Image size must be 10 MB or less.');
+    }
+
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+      throw new Error(
+        'Cloudinary configuration is missing. Check your .env.local file.'
+      );
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.secure_url) {
+      console.error('Cloudinary upload failed:', result);
+
+      throw new Error(
+        result.error?.message || 'Failed to upload image to Cloudinary.'
+      );
+    }
+
+    const imageUrl = result.secure_url as string;
+
+    // Always update the latest state to avoid overwriting another upload.
+    const updatedState: RitualInfiniteState = {
+      topRow: [...stateRef.current.topRow],
+      bottomRow: [...stateRef.current.bottomRow],
+    };
+
+    if (row === 'top') {
+      updatedState.topRow[index] = imageUrl;
+    } else {
+      updatedState.bottomRow[index] = imageUrl;
+    }
+
+    // Save only the Cloudinary URL, not Base64 data.
+    persistState(updatedState);
+  };
+
+  const resetSingleImage = (
+    row: 'top' | 'bottom',
+    index: number
+  ) => {
+    const currentRow =
+      row === 'top'
+        ? stateRef.current.topRow
+        : stateRef.current.bottomRow;
+
+    const defaultRow =
+      row === 'top' ? initialTopRow : initialBottomRow;
+
+    if (index < 0 || index >= currentRow.length) {
+      return;
+    }
+
+    const updatedState: RitualInfiniteState = {
+      topRow: [...stateRef.current.topRow],
+      bottomRow: [...stateRef.current.bottomRow],
+    };
+
+    if (row === 'top') {
+      updatedState.topRow[index] = defaultRow[index];
+    } else {
+      updatedState.bottomRow[index] = defaultRow[index];
+    }
+
+    persistState(updatedState);
+  };
+
+  const resetImages = () => {
+    const defaultState: RitualInfiniteState = {
+      topRow: [...initialTopRow],
+      bottomRow: [...initialBottomRow],
+    };
+
+    persistState(defaultState);
+  };
+
   return (
-    <RitualInfiniteContext.Provider value={{ state, updateImage, resetSingleImage, resetImages }}>
+    <RitualInfiniteContext.Provider
+      value={{
+        state,
+        updateImage,
+        resetSingleImage,
+        resetImages,
+      }}
+    >
       {children}
     </RitualInfiniteContext.Provider>
   );
@@ -142,6 +282,12 @@ export function RitualInfiniteProvider({ children }: { children: React.ReactNode
 
 export function useRitualInfinite() {
   const context = useContext(RitualInfiniteContext);
-  if (!context) throw new Error('useRitualInfinite must be used within a RitualInfiniteProvider');
+
+  if (!context) {
+    throw new Error(
+      'useRitualInfinite must be used within a RitualInfiniteProvider'
+    );
+  }
+
   return context;
 }

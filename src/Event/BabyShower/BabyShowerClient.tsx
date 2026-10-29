@@ -27,7 +27,6 @@ const slidesData = [
     title: "Ear Piercing Ceremony",
     component: <EarPiercingCeremonySection key="ear-piercing" />,
   },
- 
   {
     id: "house-warming",
     path: "/event/house-warming",
@@ -46,25 +45,24 @@ const slidesData = [
     title: "Wedding Event Photography",
     component: <OverallWeddingPage key="wedding" />,
   },
-   {
+  {
     id: "engagement",
     path: "/event/engagement",
     title: "Engagement Ceremony",
     component: <EngagementCollageCard key="engagement" />,
   },
-   {
+  {
     id: "puberty",
     path: "/event/puberty",
     title: "Puberty Ceremony",
     component: <PubertyCeremonyVisionBoard key="puberty" />,
   },
-   {
-    id: "baby-shower",
-    path: "/event/baby-shower",
+  {
+    id: "baby",
+    path: "/event/baby",
     title: "Baby Shower Ceremony",
-    component: <BabyShowerMenuCard key="baby-shower" />,
+    component: <BabyShowerMenuCard key="baby" />,
   },
-  
   {
     id: "ritual",
     path: "/event/ritual",
@@ -78,7 +76,6 @@ export default function EventPageClient() {
   const pathname = usePathname();
   const [currentIndex, setCurrentIndex] = useState(0);
 
- 
   useEffect(() => {
     const foundIndex = slidesData.findIndex((slide) => slide.path === pathname);
     if (foundIndex !== -1) {
@@ -86,7 +83,6 @@ export default function EventPageClient() {
       document.title = `${slidesData[foundIndex].title} | SingleKey Photography`;
     }
   }, [pathname]);
-
 
   const handleSlideChange = useCallback(
     (newIndex: number) => {
@@ -100,6 +96,12 @@ export default function EventPageClient() {
       if (pathname !== targetSlide.path) {
         router.push(targetSlide.path, { scroll: false });
       }
+
+      // Scroll to the absolute top of the new page instantly
+      window.scrollTo({
+        top: 0,
+        behavior: "instant",
+      });
     },
     [pathname, router]
   );

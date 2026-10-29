@@ -1,6 +1,13 @@
+
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from 'react';
 
 interface HouseInfiniteState {
   topRow: string[];
@@ -13,6 +20,10 @@ interface HouseInfiniteContextType {
   resetSingleImage: (row: 'top' | 'bottom', index: number) => void;
   resetImages: () => void;
 }
+
+const STORAGE_KEY = 'singlekey_house_infinite_slider';
+const UPDATE_EVENT = 'house_slider_updated';
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const initialTopRow = [
   'https://pestafiesta.com/wp-content/uploads/2021/05/Party-Venue.jpg',
@@ -30,111 +41,213 @@ const initialBottomRow = [
   'https://tse3.mm.bing.net/th/id/OIP.Br8Og0aLya7hgv6qMP18ZQHaFL?r=0&w=1024&h=716&rs=1&pid=ImgDetMain&o=7&rm=3',
 ];
 
-const HouseInfiniteContext = createContext<HouseInfiniteContextType | undefined>(undefined);
+const getDefaultState = (): HouseInfiniteState => ({
+  topRow: [...initialTopRow],
+  bottomRow: [...initialBottomRow],
+});
 
-export function HouseInfiniteProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<HouseInfiniteState>({
-    topRow: initialTopRow,
-    bottomRow: initialBottomRow,
-  });
+const isValidImageUrl = (value: unknown): value is string =>
+  typeof value === 'string' && /^https?:\/\//i.test(value);
 
-  useEffect(() => {
+const sanitizeSavedState = (parsed: unknown): HouseInfiniteState => {
+  const defaults = getDefaultState();
+
+  if (!parsed || typeof parsed !== 'object') {
+    return defaults;
+  }
+
+  const saved = parsed as Partial<HouseInfiniteState>;
+
+  return {
+    topRow: defaults.topRow.map((defaultUrl, index) => {
+      const value = saved.topRow?.[index];
+      return isValidImageUrl(value) ? value : defaultUrl;
+    }),
+    bottomRow: defaults.bottomRow.map((defaultUrl, index) => {
+      const value = saved.bottomRow?.[index];
+      return isValidImageUrl(value) ? value : defaultUrl;
+    }),
+  };
+};
+
+const HouseInfiniteContext =
+  createContext<HouseInfiniteContextType | undefined>(undefined);
+
+export function HouseInfiniteProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [state, setState] = useState<HouseInfiniteState>(getDefaultState);
+
+  // Keep the latest state available for consecutive image uploads.
+  const stateRef = useRef<HouseInfiniteState>(getDefaultState());
+
+  const persistState = (nextState: HouseInfiniteState) => {
+    stateRef.current = nextState;
+    setState(nextState);
+
     try {
-      const saved = localStorage.getItem('singlekey_house_infinite_slider');
-      if (saved && saved !== 'undefined' && saved !== 'null') {
-        const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-          setState(parsed);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to parse house infinite slider from localStorage", e);
-      localStorage.removeItem('singlekey_house_infinite_slider');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+      window.dispatchEvent(new Event(UPDATE_EVENT));
+    } catch (error) {
+      console.error('Failed to save house slider state:', error);
+      alert('Unable to save the image URLs in this browser.');
     }
-  }, []);
+  };
 
   useEffect(() => {
-    const handleStorageChange = () => {
+    const loadSavedState = () => {
       try {
-        const saved = localStorage.getItem('singlekey_house_infinite_slider');
-        if (saved && saved !== 'undefined' && saved !== 'null') {
-          const parsed = JSON.parse(saved);
-          if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-            setState(parsed);
-          }
+        const saved = localStorage.getItem(STORAGE_KEY);
+
+        if (!saved || saved === 'undefined' || saved === 'null') {
+          return;
         }
-      } catch (e) {
-        console.error("Storage event parse error:", e);
+
+        const parsed: unknown = JSON.parse(saved);
+        const nextState = sanitizeSavedState(parsed);
+
+        stateRef.current = nextState;
+        setState(nextState);
+
+        // Replace legacy Base64 values with URL-only state.
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+      } catch (error) {
+        console.error('Failed to load house slider state:', error);
+        localStorage.removeItem(STORAGE_KEY);
       }
+    };
+
+    loadSavedState();
+
+    const handleStorageChange = () => {
+      loadSavedState();
     };
 
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('house_slider_updated', handleStorageChange);
+    window.addEventListener(UPDATE_EVENT, handleStorageChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('house_slider_updated', handleStorageChange);
+      window.removeEventListener(UPDATE_EVENT, handleStorageChange);
     };
   }, []);
 
-  const updateImage = (row: 'top' | 'bottom', index: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64Image = e.target?.result as string;
-      setState((prev) => {
-        const updated = { ...prev };
-        if (row === 'top') {
-          const newTop = [...prev.topRow];
-          newTop[index] = base64Image;
-          updated.topRow = newTop;
-        } else {
-          const newBottom = [...prev.bottomRow];
-          newBottom[index] = base64Image;
-          updated.bottomRow = newBottom;
-        }
+  const updateImage = async (
+    row: 'top' | 'bottom',
+    index: number,
+    file: File,
+  ): Promise<void> => {
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file.');
+      return;
+    }
 
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('singlekey_house_infinite_slider', JSON.stringify(updated));
-          window.dispatchEvent(new Event('house_slider_updated'));
-        }
-        return updated;
-      });
-    };
-    reader.readAsDataURL(file);
-  };
+    if (file.size > MAX_FILE_SIZE) {
+      alert('Image size must be 10 MB or less.');
+      return;
+    }
 
-  const resetSingleImage = (row: 'top' | 'bottom', index: number) => {
-    setState((prev) => {
-      const updated = { ...prev };
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      console.error('Cloudinary environment variables are missing.');
+      alert('Cloudinary configuration is missing. Please check .env.local.');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', uploadPreset);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        },
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.secure_url) {
+        throw new Error(result.error?.message || 'Cloudinary upload failed.');
+      }
+
+      const imageUrl: string = result.secure_url;
+      const currentState = stateRef.current;
+
+      const updatedState: HouseInfiniteState = {
+        topRow: [...currentState.topRow],
+        bottomRow: [...currentState.bottomRow],
+      };
+
       if (row === 'top') {
-        const newTop = [...prev.topRow];
-        newTop[index] = initialTopRow[index];
-        updated.topRow = newTop;
+        if (index < 0 || index >= updatedState.topRow.length) {
+          alert('Invalid top-row image index.');
+          return;
+        }
+
+        updatedState.topRow[index] = imageUrl;
       } else {
-        const newBottom = [...prev.bottomRow];
-        newBottom[index] = initialBottomRow[index];
-        updated.bottomRow = newBottom;
+        if (index < 0 || index >= updatedState.bottomRow.length) {
+          alert('Invalid bottom-row image index.');
+          return;
+        }
+
+        updatedState.bottomRow[index] = imageUrl;
       }
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('singlekey_house_infinite_slider', JSON.stringify(updated));
-        window.dispatchEvent(new Event('house_slider_updated'));
-      }
-      return updated;
-    });
-  };
-
-  const resetImages = () => {
-    const defaultState = { topRow: initialTopRow, bottomRow: initialBottomRow };
-    setState(defaultState);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('singlekey_house_infinite_slider', JSON.stringify(defaultState));
-      window.dispatchEvent(new Event('house_slider_updated'));
+      persistState(updatedState);
+      console.log('House slider image uploaded successfully:', imageUrl);
+    } catch (error) {
+      console.error('House slider image upload failed:', error);
+      alert(
+        error instanceof Error
+          ? `Image upload failed: ${error.message}`
+          : 'Image upload failed. Please try again.',
+      );
     }
   };
 
+  const resetSingleImage = (
+    row: 'top' | 'bottom',
+    index: number,
+  ): void => {
+    const currentState = stateRef.current;
+
+    const updatedState: HouseInfiniteState = {
+      topRow: [...currentState.topRow],
+      bottomRow: [...currentState.bottomRow],
+    };
+
+    if (row === 'top') {
+      if (index < 0 || index >= initialTopRow.length) return;
+      updatedState.topRow[index] = initialTopRow[index];
+    } else {
+      if (index < 0 || index >= initialBottomRow.length) return;
+      updatedState.bottomRow[index] = initialBottomRow[index];
+    }
+
+    persistState(updatedState);
+  };
+
+  const resetImages = (): void => {
+    persistState(getDefaultState());
+  };
+
   return (
-    <HouseInfiniteContext.Provider value={{ state, updateImage, resetSingleImage, resetImages }}>
+    <HouseInfiniteContext.Provider
+      value={{
+        state,
+        updateImage,
+        resetSingleImage,
+        resetImages,
+      }}
+    >
       {children}
     </HouseInfiniteContext.Provider>
   );
@@ -142,6 +255,12 @@ export function HouseInfiniteProvider({ children }: { children: React.ReactNode 
 
 export function useHouseInfinite() {
   const context = useContext(HouseInfiniteContext);
-  if (!context) throw new Error('useHouseInfinite must be used within a HouseInfiniteProvider');
+
+  if (!context) {
+    throw new Error(
+      'useHouseInfinite must be used within a HouseInfiniteProvider',
+    );
+  }
+
   return context;
 }

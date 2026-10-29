@@ -1,7 +1,7 @@
 "use client";
 
 export default function BabyIntro() {
-  const bgImageUrl = "https://pub-27b08ca42de846119fe71d8c460d36c9.r2.dev/wp-uploads/uploads/2023/12/WEDDING-PHOTOGRAPHY-IN-COIMBATORE.jpg";
+  const bgImageUrl = "https://res.cloudinary.com/dtu6kmq6r/image/upload/v1793272047/wedding-photography-south-indian-tamil-hindu-marriage_1337_1.jpg";
 
   return (
     <main className="relative w-full h-screen overflow-hidden bg-black">

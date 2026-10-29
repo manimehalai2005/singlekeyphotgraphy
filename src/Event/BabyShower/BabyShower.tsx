@@ -3,11 +3,6 @@
 import React from 'react';
 import { motion, Variants } from 'framer-motion';
 import BabyShowerScrapbookSection from './BabyShowerscropbooksection';
-import BabyShowerPolaroidGrid from './BabyShowerpolaridGrid';
-import PhotographyPortfolioTemplate from '@/src/About/mainsecondsection';
-import InfinitePhotoSlider from '../Photogallerytemplate';
-import StarfieldCursor from '@/src/StarFieldCursor';
-import DriftWall from '@/src/Driffttwall';
 import WeddingDriftGallery from '../Prewedd';
 
 export default function BabyShowerMenuCard() {

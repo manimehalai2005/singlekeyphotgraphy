@@ -1,6 +1,13 @@
+
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from 'react';
 
 interface NamingInfiniteState {
   topRow: string[];
@@ -13,6 +20,10 @@ interface NamingInfiniteContextType {
   resetSingleImage: (row: 'top' | 'bottom', index: number) => void;
   resetImages: () => void;
 }
+
+const STORAGE_KEY = 'singlekey_naming_infinite_slider';
+const UPDATE_EVENT = 'naming_slider_updated';
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const initialTopRow = [
   'https://pestafiesta.com/wp-content/uploads/2021/05/Party-Venue.jpg',
@@ -30,111 +41,216 @@ const initialBottomRow = [
   'https://tse3.mm.bing.net/th/id/OIP.Br8Og0aLya7hgv6qMP18ZQHaFL?r=0&w=1024&h=716&rs=1&pid=ImgDetMain&o=7&rm=3',
 ];
 
-const NamingInfiniteContext = createContext<NamingInfiniteContextType | undefined>(undefined);
+const getDefaultState = (): NamingInfiniteState => ({
+  topRow: [...initialTopRow],
+  bottomRow: [...initialBottomRow],
+});
 
-export function NamingInfiniteProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<NamingInfiniteState>({
-    topRow: initialTopRow,
-    bottomRow: initialBottomRow,
-  });
+const isValidImageUrl = (value: unknown): value is string =>
+  typeof value === 'string' && /^https?:\/\//i.test(value);
 
-  useEffect(() => {
+const sanitizeState = (value: unknown): NamingInfiniteState => {
+  const defaults = getDefaultState();
+
+  if (!value || typeof value !== 'object') {
+    return defaults;
+  }
+
+  const saved = value as Partial<NamingInfiniteState>;
+
+  return {
+    topRow: defaults.topRow.map((url, index) =>
+      isValidImageUrl(saved.topRow?.[index])
+        ? saved.topRow[index]
+        : url,
+    ),
+    bottomRow: defaults.bottomRow.map((url, index) =>
+      isValidImageUrl(saved.bottomRow?.[index])
+        ? saved.bottomRow[index]
+        : url,
+    ),
+  };
+};
+
+const NamingInfiniteContext =
+  createContext<NamingInfiniteContextType | undefined>(undefined);
+
+export function NamingInfiniteProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [state, setState] = useState<NamingInfiniteState>(getDefaultState);
+
+  const stateRef = useRef<NamingInfiniteState>(getDefaultState());
+
+  const persistState = (updated: NamingInfiniteState) => {
+    stateRef.current = updated;
+    setState(updated);
+
     try {
-      const saved = localStorage.getItem('singlekey_naming_infinite_slider');
-      if (saved && saved !== 'undefined' && saved !== 'null') {
-        const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-          setState(parsed);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to parse naming infinite slider from localStorage", e);
-      localStorage.removeItem('singlekey_naming_infinite_slider');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event(UPDATE_EVENT));
+    } catch (error) {
+      console.error('Failed to save naming slider state:', error);
+      alert('Unable to save image URLs in browser storage.');
     }
-  }, []);
+  };
 
   useEffect(() => {
-    const handleStorageChange = () => {
+    const loadSavedState = () => {
       try {
-        const saved = localStorage.getItem('singlekey_naming_infinite_slider');
-        if (saved && saved !== 'undefined' && saved !== 'null') {
-          const parsed = JSON.parse(saved);
-          if (parsed && Array.isArray(parsed.topRow) && Array.isArray(parsed.bottomRow)) {
-            setState(parsed);
-          }
+        const saved = localStorage.getItem(STORAGE_KEY);
+
+        if (!saved || saved === 'undefined' || saved === 'null') {
+          return;
         }
-      } catch (e) {
-        console.error("Storage event parse error:", e);
+
+        const parsed: unknown = JSON.parse(saved);
+        const sanitized = sanitizeState(parsed);
+
+        stateRef.current = sanitized;
+        setState(sanitized);
+
+        // Keep only HTTP(S) URLs; replace legacy Base64 values.
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+      } catch (error) {
+        console.error('Failed to load naming slider state:', error);
+        localStorage.removeItem(STORAGE_KEY);
       }
+    };
+
+    loadSavedState();
+
+    const handleStorageChange = () => {
+      loadSavedState();
     };
 
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('naming_slider_updated', handleStorageChange);
+    window.addEventListener(UPDATE_EVENT, handleStorageChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('naming_slider_updated', handleStorageChange);
+      window.removeEventListener(UPDATE_EVENT, handleStorageChange);
     };
   }, []);
 
-  const updateImage = (row: 'top' | 'bottom', index: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64Image = e.target?.result as string;
-      setState((prev) => {
-        const updated = { ...prev };
-        if (row === 'top') {
-          const newTop = [...prev.topRow];
-          newTop[index] = base64Image;
-          updated.topRow = newTop;
-        } else {
-          const newBottom = [...prev.bottomRow];
-          newBottom[index] = base64Image;
-          updated.bottomRow = newBottom;
-        }
+  const updateImage = async (
+    row: 'top' | 'bottom',
+    index: number,
+    file: File,
+  ): Promise<void> => {
+    const currentRow =
+      row === 'top' ? stateRef.current.topRow : stateRef.current.bottomRow;
 
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('singlekey_naming_infinite_slider', JSON.stringify(updated));
-          window.dispatchEvent(new Event('naming_slider_updated'));
-        }
-        return updated;
-      });
-    };
-    reader.readAsDataURL(file);
-  };
+    if (index < 0 || index >= currentRow.length) {
+      alert('Invalid image index.');
+      return;
+    }
 
-  const resetSingleImage = (row: 'top' | 'bottom', index: number) => {
-    setState((prev) => {
-      const updated = { ...prev };
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file.');
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      alert('Image size must be 10 MB or less.');
+      return;
+    }
+
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      console.error('Cloudinary environment variables are missing.');
+      alert('Cloudinary configuration is missing. Check .env.local.');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', uploadPreset);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        },
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.secure_url) {
+        throw new Error(
+          result.error?.message || 'Cloudinary upload failed.',
+        );
+      }
+
+      const imageUrl: string = result.secure_url;
+      const latestState = stateRef.current;
+
+      const updated: NamingInfiniteState = {
+        topRow: [...latestState.topRow],
+        bottomRow: [...latestState.bottomRow],
+      };
+
       if (row === 'top') {
-        const newTop = [...prev.topRow];
-        newTop[index] = initialTopRow[index];
-        updated.topRow = newTop;
+        updated.topRow[index] = imageUrl;
       } else {
-        const newBottom = [...prev.bottomRow];
-        newBottom[index] = initialBottomRow[index];
-        updated.bottomRow = newBottom;
+        updated.bottomRow[index] = imageUrl;
       }
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('singlekey_naming_infinite_slider', JSON.stringify(updated));
-        window.dispatchEvent(new Event('naming_slider_updated'));
-      }
-      return updated;
-    });
-  };
+      persistState(updated);
+      console.log('Naming slider image uploaded:', imageUrl);
+    } catch (error) {
+      console.error('Naming slider image upload failed:', error);
 
-  const resetImages = () => {
-    const defaultState = { topRow: initialTopRow, bottomRow: initialBottomRow };
-    setState(defaultState);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('singlekey_naming_infinite_slider', JSON.stringify(defaultState));
-      window.dispatchEvent(new Event('naming_slider_updated'));
+      alert(
+        error instanceof Error
+          ? `Image upload failed: ${error.message}`
+          : 'Image upload failed. Please try again.',
+      );
     }
   };
 
+  const resetSingleImage = (
+    row: 'top' | 'bottom',
+    index: number,
+  ): void => {
+    const defaults = getDefaultState();
+    const latestState = stateRef.current;
+
+    const updated: NamingInfiniteState = {
+      topRow: [...latestState.topRow],
+      bottomRow: [...latestState.bottomRow],
+    };
+
+    if (row === 'top') {
+      if (index < 0 || index >= defaults.topRow.length) return;
+      updated.topRow[index] = defaults.topRow[index];
+    } else {
+      if (index < 0 || index >= defaults.bottomRow.length) return;
+      updated.bottomRow[index] = defaults.bottomRow[index];
+    }
+
+    persistState(updated);
+  };
+
+  const resetImages = (): void => {
+    persistState(getDefaultState());
+  };
+
   return (
-    <NamingInfiniteContext.Provider value={{ state, updateImage, resetSingleImage, resetImages }}>
+    <NamingInfiniteContext.Provider
+      value={{
+        state,
+        updateImage,
+        resetSingleImage,
+        resetImages,
+      }}
+    >
       {children}
     </NamingInfiniteContext.Provider>
   );
@@ -142,6 +258,12 @@ export function NamingInfiniteProvider({ children }: { children: React.ReactNode
 
 export function useNamingInfinite() {
   const context = useContext(NamingInfiniteContext);
-  if (!context) throw new Error('useNamingInfinite must be used within a NamingInfiniteProvider');
+
+  if (!context) {
+    throw new Error(
+      'useNamingInfinite must be used within a NamingInfiniteProvider',
+    );
+  }
+
   return context;
 }
